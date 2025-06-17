@@ -206,10 +206,22 @@ except ImportError:
 
 # Import constants
 from ...constants import (
+    CONTROL_BUTTON_SIZE,
     DEFAULT_VOLUME,
+    GROUP_SPACING,
+    INPUT_HEIGHT,
     PROGRESS_BAR_MAX,
+    QUALITY_COMBO_WIDTH,
+    QUALITY_LABEL_WIDTH,
+    STANDARD_MARGIN,
+    STANDARD_SPACING,
+    STREAM_LABEL_WIDTH,
+    STREAM_PORT_WIDTH,
+    TIME_LABEL_WIDTH,
     VIDEO_CONTROLS_HEIGHT,
+    VOLUME_ICON_WIDTH,
     VOLUME_SLIDER_MAX,
+    VOLUME_SLIDER_WIDTH,
 )
 
 # Import utility functions
@@ -249,21 +261,23 @@ class VideoControls(QWidget):
 
     def _init_ui(self):
         """Initialize the user interface."""
-        # Set fixed height for the controls
-        self.setFixedHeight(VIDEO_CONTROLS_HEIGHT + 10)
+        # Set minimum height for the controls, allow flexible sizing
+        self.setMinimumHeight(VIDEO_CONTROLS_HEIGHT)
         self.setObjectName("videoControlsContainer")
+        if PYSIDE6_AVAILABLE:
+            self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
 
         # Create main layout - single row for better organization
         main_layout = QHBoxLayout(self)
-        main_layout.setContentsMargins(24, 12, 24, 12)
-        main_layout.setSpacing(20)
+        main_layout.setContentsMargins(STANDARD_MARGIN * 2, STANDARD_MARGIN, STANDARD_MARGIN * 2, STANDARD_MARGIN)
+        main_layout.setSpacing(GROUP_SPACING)
 
         # Create playback buttons group
         playback_group = QWidget()
         playback_group.setObjectName("playbackGroup")
         playback_layout = QHBoxLayout(playback_group)
         playback_layout.setContentsMargins(0, 0, 0, 0)
-        playback_layout.setSpacing(8)
+        playback_layout.setSpacing(STANDARD_SPACING)
 
         self.prev_button = QPushButton("⏮")
         self.play_pause_button = QPushButton("▶")
@@ -279,8 +293,8 @@ class VideoControls(QWidget):
         ]
 
         for button in control_buttons:
-            button.setFixedWidth(44)
-            button.setFixedHeight(44)
+            button.setFixedWidth(CONTROL_BUTTON_SIZE)
+            button.setFixedHeight(CONTROL_BUTTON_SIZE)
             button.setObjectName("controlButton")
 
         # Add buttons to playback group
@@ -290,19 +304,22 @@ class VideoControls(QWidget):
         playback_layout.addWidget(self.next_button)
 
         main_layout.addWidget(playback_group)
+        
+        # Add stretch between playback and progress groups
+        main_layout.addStretch()
 
         # Progress section with time labels and slider
         progress_group = QWidget()
         progress_group.setObjectName("progressGroup")
         progress_layout = QHBoxLayout(progress_group)
         progress_layout.setContentsMargins(0, 0, 0, 0)
-        progress_layout.setSpacing(12)
+        progress_layout.setSpacing(GROUP_SPACING)
 
         # Current time label
         self.current_time_label = QLabel("00:00")
         self.current_time_label.setObjectName("timeLabel")
         self.current_time_label.setAlignment(Qt.AlignCenter)
-        self.current_time_label.setFixedWidth(55)
+        self.current_time_label.setFixedWidth(TIME_LABEL_WIDTH)
         progress_layout.addWidget(self.current_time_label)
 
         # Progress slider (for seeking)
@@ -317,23 +334,26 @@ class VideoControls(QWidget):
         self.total_time_label = QLabel("00:00")
         self.total_time_label.setObjectName("timeLabel")
         self.total_time_label.setAlignment(Qt.AlignCenter)
-        self.total_time_label.setFixedWidth(55)
+        self.total_time_label.setFixedWidth(TIME_LABEL_WIDTH)
         progress_layout.addWidget(self.total_time_label)
 
-        main_layout.addWidget(progress_group, 1)
+        main_layout.addWidget(progress_group, 2)  # Give progress section more space
+        
+        # Add stretch between progress and volume groups
+        main_layout.addStretch()
 
         # Volume control group
         volume_group = QWidget()
         volume_group.setObjectName("volumeGroup")
         volume_layout = QHBoxLayout(volume_group)
         volume_layout.setContentsMargins(0, 0, 0, 0)
-        volume_layout.setSpacing(8)
+        volume_layout.setSpacing(STANDARD_SPACING)
 
         # Mute button (placed before slider)
         self.mute_button = QPushButton("🔊")
         self.mute_button.setObjectName("muteButton")
-        self.mute_button.setFixedWidth(40)
-        self.mute_button.setFixedHeight(40)
+        self.mute_button.setFixedWidth(CONTROL_BUTTON_SIZE)
+        self.mute_button.setFixedHeight(CONTROL_BUTTON_SIZE)
         volume_layout.addWidget(self.mute_button)
 
         # Volume slider
@@ -341,25 +361,28 @@ class VideoControls(QWidget):
         self.volume_slider.setObjectName("volumeSlider")
         self.volume_slider.setMaximum(VOLUME_SLIDER_MAX)
         self.volume_slider.setValue(DEFAULT_VOLUME)
-        self.volume_slider.setFixedWidth(120)
+        self.volume_slider.setFixedWidth(VOLUME_SLIDER_WIDTH)
         self.volume_slider.setMinimumHeight(24)
         volume_layout.addWidget(self.volume_slider)
 
         # Volume label (shows current volume)
         self.volume_label = QLabel("🔊")
         self.volume_label.setObjectName("volumeIcon")
-        self.volume_label.setFixedWidth(30)
+        self.volume_label.setFixedWidth(VOLUME_ICON_WIDTH)
         self.volume_label.setAlignment(Qt.AlignCenter)
         volume_layout.addWidget(self.volume_label)
 
         main_layout.addWidget(volume_group)
+        
+        # Add stretch between volume and settings groups
+        main_layout.addStretch()
 
         # Settings and streaming group
         settings_group = QWidget()
         settings_group.setObjectName("settingsGroup")
         settings_layout = QHBoxLayout(settings_group)
         settings_layout.setContentsMargins(0, 0, 0, 0)
-        settings_layout.setSpacing(12)
+        settings_layout.setSpacing(GROUP_SPACING)
 
         # Quality dropdown with label
         quality_container = QWidget()
@@ -369,15 +392,15 @@ class VideoControls(QWidget):
 
         quality_label = QLabel("Quality:")
         quality_label.setObjectName("settingLabel")
-        quality_label.setFixedWidth(50)
+        quality_label.setFixedWidth(QUALITY_LABEL_WIDTH)
         quality_layout.addWidget(quality_label)
 
         self.quality_combo = QComboBox()
         self.quality_combo.setObjectName("qualityCombo")
         self.quality_combo.addItems(["best", "720p", "480p", "360p", "audio"])
         self.quality_combo.setCurrentText("best")
-        self.quality_combo.setFixedWidth(85)
-        self.quality_combo.setFixedHeight(36)
+        self.quality_combo.setFixedWidth(QUALITY_COMBO_WIDTH)
+        self.quality_combo.setFixedHeight(INPUT_HEIGHT)
         quality_layout.addWidget(self.quality_combo)
 
         settings_layout.addWidget(quality_container)
@@ -390,7 +413,7 @@ class VideoControls(QWidget):
 
         stream_label = QLabel("Port:")
         stream_label.setObjectName("settingLabel")
-        stream_label.setFixedWidth(35)
+        stream_label.setFixedWidth(STREAM_LABEL_WIDTH)
         stream_layout.addWidget(stream_label)
 
         self.stream_port_input = QSpinBox()
@@ -398,15 +421,15 @@ class VideoControls(QWidget):
         self.stream_port_input.setMinimum(1024)
         self.stream_port_input.setMaximum(65535)
         self.stream_port_input.setValue(8080)
-        self.stream_port_input.setFixedWidth(75)
-        self.stream_port_input.setFixedHeight(36)
+        self.stream_port_input.setFixedWidth(STREAM_PORT_WIDTH)
+        self.stream_port_input.setFixedHeight(INPUT_HEIGHT)
         stream_layout.addWidget(self.stream_port_input)
 
         self.stream_button = QPushButton("📡")
         self.stream_button.setObjectName("streamButton")
         self.stream_button.setCheckable(True)
-        self.stream_button.setFixedWidth(40)
-        self.stream_button.setFixedHeight(40)
+        self.stream_button.setFixedWidth(CONTROL_BUTTON_SIZE)
+        self.stream_button.setFixedHeight(CONTROL_BUTTON_SIZE)
         self.stream_button.setToolTip("Toggle audio streaming")
         stream_layout.addWidget(self.stream_button)
 
@@ -571,6 +594,7 @@ class VideoControls(QWidget):
     ) -> None:
         """
         Set callback functions for control buttons.
+        Disconnects existing signals to prevent duplication.
 
         Args:
             play_pause_callback: Function to call when play/pause is clicked
@@ -578,6 +602,25 @@ class VideoControls(QWidget):
             prev_callback: Function to call when previous is clicked
             next_callback: Function to call when next is clicked
         """
+        # Disconnect existing signals to prevent duplication
+        if PYSIDE6_AVAILABLE:
+            # Disconnect each button individually and silently ignore if no connections exist
+            buttons_with_callbacks = [
+                (self.play_pause_button, play_pause_callback),
+                (self.stop_button, stop_callback),
+                (self.prev_button, prev_callback),
+                (self.next_button, next_callback)
+            ]
+            
+            for button, callback in buttons_with_callbacks:
+                if callback:  # Only disconnect if we're going to reconnect
+                    try:
+                        button.clicked.disconnect()
+                    except (RuntimeError, TypeError):
+                        # No existing connections or signal doesn't exist, which is fine
+                        pass
+        
+        # Connect new callbacks
         if play_pause_callback:
             self.play_pause_button.clicked.connect(play_pause_callback)
 

@@ -275,7 +275,10 @@ from ..constants import (
     DEFAULT_WINDOW_HEIGHT,
     DEFAULT_WINDOW_WIDTH,
     MIN_URL_ENTRY_WIDTH,
+    MIN_VIDEO_FRAME_HEIGHT,
     POSITION_UPDATE_INTERVAL_MS,
+    STANDARD_MARGIN,
+    STANDARD_SPACING,
 )
 from ..core.vlc_player import VLCPlayer
 from ..managers.playback_manager import PlaybackManager
@@ -382,7 +385,7 @@ class ModernYouTubePlayer(QMainWindow):
         self.setCentralWidget(central_widget)
 
         main_layout = QVBoxLayout(central_widget)
-        main_layout.setSpacing(8)  # Add spacing between major sections
+        main_layout.setSpacing(STANDARD_SPACING)  # Add spacing between major sections
         main_layout.setContentsMargins(0, 0, 0, 0)
 
         # Create UI components using delegated methods
@@ -394,7 +397,7 @@ class ModernYouTubePlayer(QMainWindow):
         tabs_container = QWidget()
         tabs_container.setObjectName("tabsContainer")
         tabs_layout = QVBoxLayout(tabs_container)
-        tabs_layout.setContentsMargins(10, 5, 10, 10)
+        tabs_layout.setContentsMargins(STANDARD_MARGIN, STANDARD_MARGIN // 2, STANDARD_MARGIN, STANDARD_MARGIN)
 
         self.tabs = QTabWidget()
         tabs_layout.addWidget(self.tabs)
@@ -452,11 +455,12 @@ class ModernYouTubePlayer(QMainWindow):
         self.toolbar = QWidget()
         toolbar = self.toolbar
         toolbar.setObjectName("toolbar")
-        toolbar.setFixedHeight(70)
+        # Remove fixed height to allow flexible sizing
+        toolbar.setMinimumHeight(60)
 
         layout = QHBoxLayout(toolbar)
-        layout.setContentsMargins(20, 15, 20, 15)
-        layout.setSpacing(20)
+        layout.setContentsMargins(STANDARD_MARGIN * 2, STANDARD_MARGIN, STANDARD_MARGIN * 2, STANDARD_MARGIN)
+        layout.setSpacing(STANDARD_SPACING * 2)
 
         # Logo/Title
         title = QLabel("▶ YouTube Player")
@@ -469,8 +473,8 @@ class ModernYouTubePlayer(QMainWindow):
         url_container = QWidget()
         url_container.setObjectName("urlContainer")
         url_layout = QHBoxLayout(url_container)
-        url_layout.setContentsMargins(5, 5, 5, 5)
-        url_layout.setSpacing(10)
+        url_layout.setContentsMargins(STANDARD_MARGIN // 2, STANDARD_MARGIN // 2, STANDARD_MARGIN // 2, STANDARD_MARGIN // 2)
+        url_layout.setSpacing(STANDARD_SPACING)
 
         self.url_entry = QLineEdit()
         self.url_entry.setObjectName("urlEntry")
@@ -502,8 +506,8 @@ class ModernYouTubePlayer(QMainWindow):
         # Quick action buttons
         actions_container = QWidget()
         actions_layout = QHBoxLayout(actions_container)
-        actions_layout.setContentsMargins(5, 0, 0, 0)
-        actions_layout.setSpacing(8)
+        actions_layout.setContentsMargins(STANDARD_MARGIN // 2, 0, 0, 0)
+        actions_layout.setSpacing(STANDARD_SPACING)
 
         # Playlist quick add
         self.quick_add_button = ModernButton("", "➕", toolbar)
@@ -528,18 +532,18 @@ class ModernYouTubePlayer(QMainWindow):
         self.player_container = QWidget()
         player_container = self.player_container
         player_container.setObjectName("playerContainer")
-        player_container.setMaximumHeight(380)  # Constrain total player area height
+        # Remove fixed height constraint to allow flexible sizing
         player_layout = QVBoxLayout(player_container)
-        player_layout.setContentsMargins(8, 6, 8, 6)
-        player_layout.setSpacing(6)
+        player_layout.setContentsMargins(STANDARD_MARGIN, STANDARD_MARGIN, STANDARD_MARGIN, STANDARD_MARGIN)
+        player_layout.setSpacing(STANDARD_SPACING)
 
         # Video player container with placeholder
         self.video_frame = QWidget()
         self.video_frame.setObjectName("videoFrame")
-        self.video_frame.setMinimumHeight(240)
-        self.video_frame.setMaximumHeight(280)
+        self.video_frame.setMinimumHeight(MIN_VIDEO_FRAME_HEIGHT)
+        # Remove maximum height constraint to allow flexible sizing
         if PYSIDE6_AVAILABLE:
-            self.video_frame.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+            self.video_frame.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
         # Create video frame layout for placeholder content
         video_frame_layout = QVBoxLayout(self.video_frame)
@@ -844,9 +848,12 @@ class ModernYouTubePlayer(QMainWindow):
         """Exit fullscreen mode."""
         if self.is_video_fullscreen:
             self.is_video_fullscreen = False
-            self.video_frame.setParent(self.centralWidget())
+            self.video_frame.setParent(self.player_container)
             self.video_frame.showNormal()
-            # Re-add to layout - would need to implement proper layout restoration
+            # Re-add video frame to player container layout at the beginning
+            player_layout = self.player_container.layout()
+            if player_layout:
+                player_layout.insertWidget(0, self.video_frame)
 
     # Event handlers
     def on_playback_started(self, video_info=None):
@@ -1087,6 +1094,16 @@ class ModernYouTubePlayer(QMainWindow):
                 1000, self.play_video_thread
             )  # Small delay to ensure UI is ready
 
+    def resizeEvent(self, event):
+        """Handle window resize events to maintain proper layout."""
+        super().resizeEvent(event)
+        
+        # Maintain aspect ratio for video frame if needed
+        if hasattr(self, 'video_frame') and self.video_frame:
+            # Allow video frame to scale naturally with the window
+            # The layout system will handle the sizing automatically
+            pass
+    
     def closeEvent(self, event):
         """Handle application shutdown."""
         self.logger.info("Application closing")
