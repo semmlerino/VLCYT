@@ -26,7 +26,7 @@ POSITION_UPDATE_INTERVAL_MS = 100
 
 # Video Controls Constants
 VIDEO_CONTROLS_HEIGHT = 60  # Allow flexible height
-CONTROL_BUTTON_SIZE = 40  # Standard button size
+CONTROL_BUTTON_SIZE = 40  # Standard button size for playback/mute/stream buttons
 STANDARD_MARGIN = 10  # Standard margin for layouts
 STANDARD_SPACING = 8  # Standard spacing for layouts
 GROUP_SPACING = 12  # Spacing between major groups
@@ -36,7 +36,7 @@ TIME_LABEL_WIDTH = 55  # Width for time display labels
 VOLUME_SLIDER_WIDTH = 120  # Width for volume slider
 VOLUME_ICON_WIDTH = 30  # Width for volume icon
 QUALITY_LABEL_WIDTH = 50  # Width for quality label
-QUALITY_COMBO_WIDTH = 85  # Width for quality dropdown  
+QUALITY_COMBO_WIDTH = 85  # Width for quality dropdown
 STREAM_LABEL_WIDTH = 35  # Width for stream label
 STREAM_PORT_WIDTH = 75  # Width for port input
 INPUT_HEIGHT = 36  # Standard height for inputs

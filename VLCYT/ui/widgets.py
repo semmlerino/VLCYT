@@ -93,7 +93,7 @@ except ImportError:
 
         def setCheckable(self, checkable):
             pass
-        
+
         def setStyleSheet(self, style):
             pass
 

@@ -530,7 +530,6 @@ class ThemeManager:
                 border-radius: 8px;
                 margin: 8px;
                 min-height: 240px;
-                max-height: 280px;
             }}
             
             QWidget#videoFrame:hover {{

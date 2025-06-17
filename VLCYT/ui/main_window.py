@@ -10,15 +10,8 @@ try:
     from PySide6.QtCore import QSettings, Qt, QTimer
     from PySide6.QtGui import QKeySequence, QShortcut
     from PySide6.QtWidgets import (
-        QComboBox,
-        QHBoxLayout,
-        QLabel,
-        QLineEdit,
         QMainWindow,
         QMessageBox,
-        QProgressBar,
-        QSizePolicy,
-        QTabWidget,
         QVBoxLayout,
         QWidget,
     )
@@ -141,7 +134,7 @@ except ImportError:
 
         def winId(self):
             return 12345
-        
+
         def setSizePolicy(self, horizontal, vertical):
             pass
 
@@ -263,7 +256,7 @@ except ImportError:
         @staticmethod
         def __call__(key):
             return key
-    
+
     class QSizePolicy:
         Expanding = 0
         Fixed = 1
@@ -274,10 +267,7 @@ from ..constants import (
     DEFAULT_VOLUME,
     DEFAULT_WINDOW_HEIGHT,
     DEFAULT_WINDOW_WIDTH,
-    MIN_URL_ENTRY_WIDTH,
-    MIN_VIDEO_FRAME_HEIGHT,
     POSITION_UPDATE_INTERVAL_MS,
-    STANDARD_MARGIN,
     STANDARD_SPACING,
 )
 from ..core.vlc_player import VLCPlayer
@@ -316,16 +306,12 @@ class ModernYouTubePlayer(QMainWindow):
 
         # Initialize managers
         from ..managers.settings_manager import SettingsManager
+        from ..managers.transcript_manager import TranscriptManager
+        from ..managers.streaming_manager import StreamingManager
 
         self.settings_manager = SettingsManager(self.qsettings)
         self.playback_manager = PlaybackManager(self.vlc_player, self.thread_manager)
-
-        from ..managers.transcript_manager import TranscriptManager
-
         self.transcript_manager = TranscriptManager(self.thread_manager)
-
-        from ..managers.streaming_manager import StreamingManager
-
         self.streaming_manager = StreamingManager(self.vlc_player)
 
         # Initialize position timer for progress bar updates
@@ -333,7 +319,6 @@ class ModernYouTubePlayer(QMainWindow):
         self.position_timer.timeout.connect(self.update_position)
 
         # UI state
-        self.is_video_fullscreen = False
         self.is_muted = False
         self.volume_before_mute = DEFAULT_VOLUME
         self.current_playlist_index = -1
@@ -341,6 +326,12 @@ class ModernYouTubePlayer(QMainWindow):
         # Current video info and state
         self.current_video_info = None
         self.current_url = None
+
+        # UI components (will be initialized in setup_ui)
+        self.toolbar = None
+        self.player_widget = None
+        self.tab_container = None
+        self.status_bar_widget = None
 
         # Check if streaming was disabled due to initialization issues
         if hasattr(self.vlc_player, "_streaming_disabled_on_init"):
@@ -355,9 +346,8 @@ class ModernYouTubePlayer(QMainWindow):
         # Setup UI and connections
         self.setup_ui()
         self.apply_theme()
-        self.setup_menu_bar()
-        self.setup_manager_connections()
         self.setup_shortcuts()
+        self.setup_manager_connections()  # After UI components are created
 
         # Load settings and show welcome
         self.load_settings()
@@ -365,7 +355,7 @@ class ModernYouTubePlayer(QMainWindow):
 
         # Update history tab with loaded data
         self.update_history_tab()
-        self.update_status("Welcome to Modern YouTube Player")
+        self.status_bar_widget.update_status("Welcome to Modern YouTube Player")
 
     def apply_theme(self):
         """Apply light theme to the application."""
@@ -375,7 +365,7 @@ class ModernYouTubePlayer(QMainWindow):
         theme_manager.apply_theme(self)
 
     def setup_ui(self):
-        """Setup the modern user interface."""
+        """Setup the modern user interface using extracted components."""
         # Set window properties
         self.setWindowTitle("Modern YouTube Player")
         self.resize(DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT)
@@ -385,45 +375,48 @@ class ModernYouTubePlayer(QMainWindow):
         self.setCentralWidget(central_widget)
 
         main_layout = QVBoxLayout(central_widget)
-        main_layout.setSpacing(STANDARD_SPACING)  # Add spacing between major sections
+        main_layout.setSpacing(STANDARD_SPACING)
         main_layout.setContentsMargins(0, 0, 0, 0)
 
-        # Create UI components using delegated methods
-        self.create_toolbar(main_layout)
-        self.create_player_widget(main_layout)
-        self.create_status_bar()
-
-        # Create tabbed interface with proper spacing
-        tabs_container = QWidget()
-        tabs_container.setObjectName("tabsContainer")
-        tabs_layout = QVBoxLayout(tabs_container)
-        tabs_layout.setContentsMargins(STANDARD_MARGIN, STANDARD_MARGIN // 2, STANDARD_MARGIN, STANDARD_MARGIN)
-
-        self.tabs = QTabWidget()
-        tabs_layout.addWidget(self.tabs)
-
-        # Import and create tab components
-        from .components.history_tab import HistoryTab
-        from .components.info_tab import InfoTab
-        from .components.playlist_tab import PlaylistTab
-        from .components.transcript_tab import TranscriptTab
-
-        self.info_tab = InfoTab()
-        self.playlist_tab = PlaylistTab()
-        self.transcript_tab = TranscriptTab()
-        self.history_tab = HistoryTab()
-
-        # Add tabs to the tabbed interface
-        self.tabs.addTab(self.info_tab, "Video Info")
-        self.tabs.addTab(self.playlist_tab, "Playlist")
-        self.tabs.addTab(self.transcript_tab, "Transcript")
-        self.tabs.addTab(self.history_tab, "History")
-
-        # Add tabs container to the main layout with stretch factor
-        main_layout.addWidget(tabs_container, 1)  # Stretch factor 1 = takes remaining space
+        # Create UI components using extracted classes
+        self._create_toolbar(main_layout)
+        self._create_player_widget(main_layout)
+        self._create_status_bar()
+        self._create_tab_container(main_layout)
 
         # Setup video player embedding
         self.setup_vlc_embedding()
+
+        # Connect component signals
+        self._connect_component_signals()
+
+    def _connect_component_signals(self):
+        """Connect signals from extracted components."""
+        if not PYSIDE6_AVAILABLE:
+            return
+
+        # Toolbar signals - check existence
+        if hasattr(self, "toolbar") and self.toolbar:
+            self.toolbar.play_requested.connect(self._on_toolbar_play_requested)
+            self.toolbar.quick_add_requested.connect(self.quick_add_to_playlist)
+            self.toolbar.settings_requested.connect(self.show_settings)
+
+        # Video controls signals - check existence
+        if hasattr(self, "video_controls") and self.video_controls:
+            self.video_controls.volume_changed.connect(self.change_volume)
+            self.video_controls.progress_pressed.connect(self.on_progress_pressed)
+            self.video_controls.progress_released.connect(self.on_progress_released)
+            self.video_controls.progress_moved.connect(self.on_progress_moved)
+            if hasattr(self.video_controls, "stream_button"):
+                self.video_controls.stream_button.clicked.connect(self.toggle_streaming)
+            if hasattr(self.video_controls, "mute_button"):
+                self.video_controls.mute_button.clicked.connect(self.toggle_mute)
+
+    def _on_toolbar_play_requested(self, url, quality):
+        """Handle play request from toolbar."""
+        # Update internal state from toolbar
+        self.current_url = url
+        self.play_video_thread()
 
     def update_position(self):
         """Update position display based on current playback position."""
@@ -448,123 +441,25 @@ class ModernYouTubePlayer(QMainWindow):
             ):
                 self.sync_transcript_to_time(time // 1000)
 
-    def create_toolbar(self, main_layout):
-        """Create modern toolbar with URL input and controls."""
-        from .widgets import ModernButton
+    def _create_toolbar(self, main_layout):
+        """Create toolbar using extracted Toolbar component."""
+        from .components.toolbar import Toolbar
 
-        self.toolbar = QWidget()
-        toolbar = self.toolbar
-        toolbar.setObjectName("toolbar")
-        # Remove fixed height to allow flexible sizing
-        toolbar.setMinimumHeight(60)
+        self.toolbar = Toolbar(self)
+        main_layout.addWidget(self.toolbar)
 
-        layout = QHBoxLayout(toolbar)
-        layout.setContentsMargins(STANDARD_MARGIN * 2, STANDARD_MARGIN, STANDARD_MARGIN * 2, STANDARD_MARGIN)
-        layout.setSpacing(STANDARD_SPACING * 2)
+    def _create_player_widget(self, main_layout):
+        """Create player widget using extracted PlayerWidget component."""
+        from .components.player_widget import PlayerWidget
 
-        # Logo/Title
-        title = QLabel("▶ YouTube Player")
-        title.setObjectName("appTitle")
-        layout.addWidget(title)
+        self.player_widget = PlayerWidget(self)
+        main_layout.addWidget(self.player_widget, 2)
 
-        layout.addStretch()
+        # Get references to nested components for compatibility
+        self.video_frame = self.player_widget.get_video_frame()
+        self.video_controls = self.player_widget.get_video_controls()
 
-        # Main URL input with integrated controls
-        url_container = QWidget()
-        url_container.setObjectName("urlContainer")
-        url_layout = QHBoxLayout(url_container)
-        url_layout.setContentsMargins(STANDARD_MARGIN // 2, STANDARD_MARGIN // 2, STANDARD_MARGIN // 2, STANDARD_MARGIN // 2)
-        url_layout.setSpacing(STANDARD_SPACING)
-
-        self.url_entry = QLineEdit()
-        self.url_entry.setObjectName("urlEntry")
-        self.url_entry.setPlaceholderText(
-            "⌁ Paste YouTube URL and press Enter to play..."
-        )
-        self.url_entry.setMinimumWidth(MIN_URL_ENTRY_WIDTH)
-        self.url_entry.returnPressed.connect(self.play_video_thread)
-        url_layout.addWidget(self.url_entry)
-
-        # Quick quality selector
-        self.quality_combo = QComboBox()
-        self.quality_combo.setObjectName("qualityCombo")
-        self.quality_combo.addItems(["Auto", "720p", "1080p", "480p", "360p", "144p"])
-        self.quality_combo.setCurrentText("720p")
-        self.quality_combo.setMaximumWidth(80)
-        self.quality_combo.setToolTip("Video quality")
-        url_layout.addWidget(self.quality_combo)
-
-        # Play button
-        self.play_url_button = ModernButton("Play", "▶", toolbar)
-        self.play_url_button.setObjectName("playButton")
-        self.play_url_button.clicked.connect(self.play_video_thread)
-        url_layout.addWidget(self.play_url_button)
-
-        layout.addWidget(url_container)
-        layout.addStretch()
-
-        # Quick action buttons
-        actions_container = QWidget()
-        actions_layout = QHBoxLayout(actions_container)
-        actions_layout.setContentsMargins(STANDARD_MARGIN // 2, 0, 0, 0)
-        actions_layout.setSpacing(STANDARD_SPACING)
-
-        # Playlist quick add
-        self.quick_add_button = ModernButton("", "➕", toolbar)
-        self.quick_add_button.setObjectName("quickButton")
-        self.quick_add_button.setToolTip("Quick add to playlist")
-        self.quick_add_button.clicked.connect(self.quick_add_to_playlist)
-        actions_layout.addWidget(self.quick_add_button)
-
-        # Settings button
-        settings_button = ModernButton("", "⚙", toolbar)
-        settings_button.setObjectName("settingsButton")
-        settings_button.setToolTip("Settings")
-        settings_button.clicked.connect(self.show_settings)
-        actions_layout.addWidget(settings_button)
-
-        layout.addWidget(actions_container)
-        main_layout.addWidget(toolbar)
-
-    def create_player_widget(self, main_layout):
-        """Create video player widget container."""
-        # Create player section container
-        self.player_container = QWidget()
-        player_container = self.player_container
-        player_container.setObjectName("playerContainer")
-        # Remove fixed height constraint to allow flexible sizing
-        player_layout = QVBoxLayout(player_container)
-        player_layout.setContentsMargins(STANDARD_MARGIN, STANDARD_MARGIN, STANDARD_MARGIN, STANDARD_MARGIN)
-        player_layout.setSpacing(STANDARD_SPACING)
-
-        # Video player container with placeholder
-        self.video_frame = QWidget()
-        self.video_frame.setObjectName("videoFrame")
-        self.video_frame.setMinimumHeight(MIN_VIDEO_FRAME_HEIGHT)
-        # Remove maximum height constraint to allow flexible sizing
-        if PYSIDE6_AVAILABLE:
-            self.video_frame.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-
-        # Create video frame layout for placeholder content
-        video_frame_layout = QVBoxLayout(self.video_frame)
-        video_frame_layout.setContentsMargins(0, 0, 0, 0)
-        video_frame_layout.setSpacing(0)
-
-        # Add placeholder content
-        self.create_video_placeholder(video_frame_layout)
-
-        if PYSIDE6_AVAILABLE:
-            self.video_frame.setAttribute(Qt.WA_DontCreateNativeAncestors)
-            self.video_frame.setAttribute(Qt.WA_NativeWindow)
-        player_layout.addWidget(self.video_frame)
-
-        # Create video controls
-        from .components.video_controls import VideoControls
-
-        self.video_controls = VideoControls()
-        player_layout.addWidget(self.video_controls)
-
-        # Connect video controls using callbacks and available signals
+        # Connect video controls callbacks
         self.video_controls.set_callbacks(
             play_pause_callback=self.toggle_play_pause,
             stop_callback=self.stop_video,
@@ -572,109 +467,73 @@ class ModernYouTubePlayer(QMainWindow):
             next_callback=self.next_video,
         )
 
-        # Connect available signals
-        if PYSIDE6_AVAILABLE:
-            self.video_controls.volume_changed.connect(self.change_volume)
-            self.video_controls.progress_pressed.connect(self.on_progress_pressed)
-            self.video_controls.progress_released.connect(self.on_progress_released)
-            self.video_controls.progress_moved.connect(self.on_progress_moved)
-            self.video_controls.stream_button.clicked.connect(self.toggle_streaming)
-            self.video_controls.mute_button.clicked.connect(self.toggle_mute)
+    def _set_video_placeholder_visibility(self, visible: bool):
+        """Controls the visibility of the video placeholder.
 
-        main_layout.addWidget(player_container)
+        Args:
+            visible: True to show the placeholder, False to hide it
+        """
+        if hasattr(self, "player_widget"):
+            self.player_widget.set_placeholder_visible(visible)
 
-    def create_video_placeholder(self, video_frame_layout):
-        """Create placeholder content for empty video frame."""
-        # Center container for placeholder content
-        placeholder_widget = QWidget()
-        placeholder_layout = QVBoxLayout(placeholder_widget)
-        placeholder_layout.setContentsMargins(24, 24, 24, 24)
-        placeholder_layout.setSpacing(12)
+    def _create_status_bar(self):
+        """Create status bar using extracted StatusBarWidget component."""
+        from .components.status_bar_widget import StatusBarWidget
 
-        # Add stretch to center content vertically
-        placeholder_layout.addStretch()
+        self.status_bar_widget = StatusBarWidget(self.statusBar())
 
-        # Main placeholder icon/text
-        main_placeholder = QLabel("🎬")
-        main_placeholder.setObjectName("videoPlaceholderIcon")
-        main_placeholder.setAlignment(Qt.AlignCenter)
-        placeholder_layout.addWidget(main_placeholder)
-
-        # Placeholder title
-        title_placeholder = QLabel("No Video Loaded")
-        title_placeholder.setObjectName("videoPlaceholder")
-        title_placeholder.setAlignment(Qt.AlignCenter)
-        placeholder_layout.addWidget(title_placeholder)
-
-        # Placeholder subtitle
-        subtitle_placeholder = QLabel(
-            "Paste a YouTube URL above and press Enter to start watching"
-        )
-        subtitle_placeholder.setObjectName("videoPlaceholderSub")
-        subtitle_placeholder.setAlignment(Qt.AlignCenter)
-        subtitle_placeholder.setWordWrap(True)
-        placeholder_layout.addWidget(subtitle_placeholder)
-
-        # Add stretch to center content vertically
-        placeholder_layout.addStretch()
-
-        # Store reference to placeholder for show/hide
-        self.video_placeholder = placeholder_widget
-
-        video_frame_layout.addWidget(placeholder_widget)
-
-    def create_status_bar(self):
-        """Create status bar with progress indicator."""
-        self.status_bar = self.statusBar()
-
-        # Status message
-        self.status_label = QLabel("Ready")
-        self.status_bar.addWidget(self.status_label)
-
-        # Progress bar for loading operations
-        self.progress_bar = QProgressBar()
-        self.progress_bar.setVisible(False)
-        self.progress_bar.setMaximumWidth(200)
-        self.status_bar.addPermanentWidget(self.progress_bar)
+        # Keep references for compatibility
+        self.status_label = self.status_bar_widget.status_label
+        self.progress_bar = self.status_bar_widget.progress_bar
 
     def setup_vlc_embedding(self):
         """Setup VLC player embedding in video frame."""
-        if self.vlc_player and hasattr(self.video_frame, "winId"):
-            try:
-                # Use the VLCPlayer's setup_embedding method for proper embedding
-                success = self.vlc_player.setup_embedding(self.video_frame)
-                if success:
-                    self.logger.info("VLC player embedded successfully")
-                else:
-                    self.logger.warning("VLC player embedding failed")
-            except Exception as e:
-                self.logger.error(f"Failed to embed VLC player: {e}")
+        if self.vlc_player and hasattr(self, "player_widget"):
+            success = self.player_widget.setup_vlc_embedding(self.vlc_player)
+            if success:
+                self.logger.info("VLC player embedded successfully")
+            else:
+                self.logger.warning("VLC player embedding failed")
 
     def setup_manager_connections(self):
         """Connect manager signals to UI handlers."""
-        # Playback manager connections
-        self.playback_manager.playback_started.connect(self.on_playback_started)
-        self.playback_manager.playback_stopped.connect(self.on_playback_stopped)
-        self.playback_manager.playback_paused.connect(self.on_playback_paused)
-        self.playback_manager.playback_error.connect(self.on_playback_error)
-        self.playback_manager.position_changed.connect(self.on_position_changed)
-        self.playback_manager.volume_changed.connect(self.on_volume_changed)
+        try:
+            # Playback manager connections
+            self.playback_manager.playback_started.connect(self.on_playback_started)
+            self.playback_manager.playback_stopped.connect(self.on_playback_stopped)
+            self.playback_manager.playback_paused.connect(self.on_playback_paused)
+            self.playback_manager.playback_error.connect(self.on_playback_error)
+            self.playback_manager.position_changed.connect(self.on_position_changed)
+            self.playback_manager.volume_changed.connect(self.on_volume_changed)
 
-        # Transcript manager connections
-        self.transcript_manager.transcript_ready.connect(self.on_transcript_ready)
-        self.transcript_manager.transcript_error.connect(self.on_transcript_error)
+            # Transcript manager connections
+            self.transcript_manager.transcript_ready.connect(self.on_transcript_ready)
+            self.transcript_manager.transcript_error.connect(self.on_transcript_error)
 
-        # Streaming manager connections
-        self.streaming_manager.streaming_enabled.connect(self.on_streaming_enabled)
-        self.streaming_manager.streaming_disabled.connect(self.on_streaming_disabled)
+            # Streaming manager connections
+            self.streaming_manager.streaming_enabled.connect(self.on_streaming_enabled)
+            self.streaming_manager.streaming_disabled.connect(
+                self.on_streaming_disabled
+            )
 
-        # Tab signal connections
-        self.playlist_tab.playlist_item_selected.connect(self.play_playlist_item)
-        self.playlist_tab.playlist_cleared.connect(self.on_playlist_cleared)
-        self.transcript_tab.transcript_fetch_requested.connect(self.fetch_transcript)
-        self.transcript_tab.transcript_seek_requested.connect(self.seek_to_time)
-        self.history_tab.play_from_history_requested.connect(self.play_from_history)
-        self.history_tab.clear_history_requested.connect(self.clear_history)
+            # Tab signal connections - check existence
+            if hasattr(self, "playlist_tab") and self.playlist_tab:
+                self.playlist_tab.playlist_item_selected.connect(
+                    self.play_playlist_item
+                )
+                self.playlist_tab.playlist_cleared.connect(self.on_playlist_cleared)
+            if hasattr(self, "transcript_tab") and self.transcript_tab:
+                self.transcript_tab.transcript_fetch_requested.connect(
+                    self.fetch_transcript
+                )
+                self.transcript_tab.transcript_seek_requested.connect(self.seek_to_time)
+            if hasattr(self, "history_tab") and self.history_tab:
+                self.history_tab.play_from_history_requested.connect(
+                    self.play_from_history
+                )
+                self.history_tab.clear_history_requested.connect(self.clear_history)
+        except AttributeError as e:
+            self.logger.warning(f"Failed to connect some manager signals: {e}")
 
     def setup_shortcuts(self):
         """Configure keyboard shortcuts."""
@@ -717,10 +576,21 @@ class ModernYouTubePlayer(QMainWindow):
                 )
             )
 
-    def setup_menu_bar(self):
-        """Setup menu bar (kept minimal for modern UI)."""
-        # For now, keep minimal - most functionality is in toolbar and tabs
-        pass
+    def _create_tab_container(self, main_layout):
+        """Create tab container using extracted TabContainer component."""
+        from .components.tab_container import TabContainer
+
+        self.tab_container = TabContainer(self)
+        main_layout.addWidget(self.tab_container, 1)
+
+        # Get references to individual tabs for compatibility
+        self.info_tab = self.tab_container.get_info_tab()
+        self.playlist_tab = self.tab_container.get_playlist_tab()
+        self.transcript_tab = self.tab_container.get_transcript_tab()
+        self.history_tab = self.tab_container.get_history_tab()
+
+        # Keep reference to tabs widget for compatibility
+        self.tabs = self.tab_container.tabs
 
     # Core functionality methods
     def play_video_thread(self):
@@ -728,20 +598,20 @@ class ModernYouTubePlayer(QMainWindow):
         from ..exceptions import SecurityError, ValidationError
         from ..validators import URLValidator
 
-        url = self.url_entry.text().strip()
+        # Get URL from toolbar or use stored URL
+        url = getattr(self, "current_url", None) or self.toolbar.get_url()
         if not url:
             return
 
         self.logger.info(f"Starting video playback: {url}")
 
         # Show progress
-        self.progress_bar.setVisible(True)
-        self.progress_bar.setRange(0, 100)
+        self.status_bar_widget.start_loading("Loading video...")
 
         # Validate URL
         try:
             self.current_url = URLValidator.validate_youtube_url(url)
-            self.url_entry.setText(self.current_url)
+            self.toolbar.set_url(self.current_url)
             self.logger.debug(f"Validated URL: {self.current_url}")
         except (ValidationError, SecurityError) as e:
             self.logger.error(f"URL validation failed: {e}")
@@ -749,16 +619,16 @@ class ModernYouTubePlayer(QMainWindow):
             return
 
         # Use PlaybackManager for playback
-        quality = self.quality_combo.currentText()
-        success = self.playback_manager.play_video(self.current_url, quality)
+        success = self.playback_manager.play_url(self.current_url)
 
         if success:
             # Update UI
-            self.play_url_button.setEnabled(False)
-            self.transcript_tab.fetch_transcript_button.setEnabled(True)
+            self.toolbar.set_play_button_enabled(False)
+            if hasattr(self.transcript_tab, "fetch_transcript_button"):
+                self.transcript_tab.fetch_transcript_button.setEnabled(True)
         else:
             self.logger.warning("Failed to start video playback")
-            self.progress_bar.setVisible(False)
+            self.status_bar_widget.stop_loading("Failed to load video")
 
     def toggle_play_pause(self):
         """Toggle play/pause state."""
@@ -770,9 +640,7 @@ class ModernYouTubePlayer(QMainWindow):
         else:
             # If no video is loaded, try to play from URL entry
             if hasattr(self, "current_url") and self.current_url:
-                self.playback_manager.play_video(
-                    self.current_url, self.quality_combo.currentText()
-                )
+                self.playback_manager.play_url(self.current_url)
 
     def stop_video(self):
         """Stop video playback."""
@@ -796,13 +664,12 @@ class ModernYouTubePlayer(QMainWindow):
             new_time = max(
                 0, current_time + (seconds * 1000)
             )  # Convert to milliseconds
-            self.playback_manager.set_time(new_time)
+            self.playback_manager.seek_time(new_time // 1000)
 
     def seek_to_time(self, time_seconds):
         """Seek to specific time."""
         if self.playback_manager.is_playing():
-            time_ms = int(time_seconds * 1000)
-            self.playback_manager.set_time(time_ms)
+            self.playback_manager.seek_time(int(time_seconds))
 
     def change_volume(self, volume):
         """Change playback volume."""
@@ -831,41 +698,29 @@ class ModernYouTubePlayer(QMainWindow):
 
     def toggle_video_fullscreen(self):
         """Toggle video fullscreen mode."""
-        if self.is_video_fullscreen:
+        if self.player_widget.is_fullscreen:
             self.exit_fullscreen()
         else:
             self.enter_video_fullscreen()
 
     def enter_video_fullscreen(self):
         """Enter fullscreen mode."""
-        if not self.is_video_fullscreen:
-            self.is_video_fullscreen = True
-            self.video_frame.setParent(None)
-            self.video_frame.showFullScreen()
-            self.video_frame.setFocus()
+        self.player_widget.enter_fullscreen()
 
     def exit_fullscreen(self):
         """Exit fullscreen mode."""
-        if self.is_video_fullscreen:
-            self.is_video_fullscreen = False
-            self.video_frame.setParent(self.player_container)
-            self.video_frame.showNormal()
-            # Re-add video frame to player container layout at the beginning
-            player_layout = self.player_container.layout()
-            if player_layout:
-                player_layout.insertWidget(0, self.video_frame)
+        self.player_widget.exit_fullscreen(self.player_widget)
 
     # Event handlers
     def on_playback_started(self, video_info=None):
         """Handle playback started event."""
         self.logger.info("Playback started")
         self.video_controls.play_pause_button.setText("⏸")
-        self.play_url_button.setEnabled(True)
-        self.progress_bar.setVisible(False)
+        self.toolbar.set_play_button_enabled(True)
+        self.status_bar_widget.stop_loading()
 
         # Hide video placeholder when playback starts
-        if hasattr(self, "video_placeholder"):
-            self.video_placeholder.setVisible(False)
+        self._set_video_placeholder_visibility(False)
 
         # Start position timer
         self.position_timer.start(POSITION_UPDATE_INTERVAL_MS)
@@ -884,8 +739,7 @@ class ModernYouTubePlayer(QMainWindow):
         self.position_timer.stop()
 
         # Show video placeholder when playback stops
-        if hasattr(self, "video_placeholder"):
-            self.video_placeholder.setVisible(True)
+        self._set_video_placeholder_visibility(True)
 
         self.update_status("Stopped")
 
@@ -930,9 +784,8 @@ class ModernYouTubePlayer(QMainWindow):
             msg = error_message
 
         QMessageBox.critical(self, title, msg)
-        self.play_url_button.setEnabled(True)
-        self.progress_bar.setVisible(False)
-        self.update_status("Error occurred")
+        self.toolbar.set_play_button_enabled(True)
+        self.status_bar_widget.stop_loading("Error occurred")
 
     def on_transcript_ready(self, transcript_data):
         """Handle transcript ready event."""
@@ -952,7 +805,6 @@ class ModernYouTubePlayer(QMainWindow):
     def on_streaming_disabled(self):
         """Handle streaming disabled event."""
         self.update_status("Streaming disabled")
-        self.update_status("Streaming stopped")
 
     # Progress bar handlers
     def on_progress_pressed(self):
@@ -981,13 +833,13 @@ class ModernYouTubePlayer(QMainWindow):
 
     def update_status(self, message):
         """Update status bar message."""
-        self.status_label.setText(message)
+        self.status_bar_widget.update_status(message)
         self.logger.debug(f"Status: {message}")
 
     # Quick actions
     def quick_add_to_playlist(self):
         """Quick add current URL to playlist."""
-        url = self.url_entry.text().strip()
+        url = self.toolbar.get_url()
         if url and hasattr(self, "current_video_info"):
             from ..models import PlaylistItem
 
@@ -1013,7 +865,7 @@ class ModernYouTubePlayer(QMainWindow):
         """Play item from playlist."""
         item = self.playlist_tab.get_current_item()
         if item:
-            self.url_entry.setText(item.url)
+            self.toolbar.set_url(item.url)
             self.play_video_thread()
 
     def on_playlist_cleared(self):
@@ -1024,7 +876,7 @@ class ModernYouTubePlayer(QMainWindow):
     def play_from_history(self, video_info):
         """Play video from history."""
         if video_info and video_info.get("url"):
-            self.url_entry.setText(video_info["url"])
+            self.toolbar.set_url(video_info["url"])
             self.play_video_thread()
 
     def clear_history(self):
@@ -1067,7 +919,9 @@ class ModernYouTubePlayer(QMainWindow):
             self.settings_manager.set_setting("window_geometry", self.saveGeometry())
 
             # Save other settings
-            if hasattr(self, "video_controls"):
+            if hasattr(self, "video_controls") and hasattr(
+                self.video_controls, "volume_slider"
+            ):
                 volume = self.video_controls.volume_slider.value()
                 self.settings_manager.set_setting("volume", volume)
 
@@ -1088,7 +942,7 @@ class ModernYouTubePlayer(QMainWindow):
     def load_url(self, url):
         """Load URL from command line or external source."""
         if url:
-            self.url_entry.setText(url)
+            self.toolbar.set_url(url)
             # Auto-play if URL is provided
             QTimer.singleShot(
                 1000, self.play_video_thread
@@ -1097,13 +951,13 @@ class ModernYouTubePlayer(QMainWindow):
     def resizeEvent(self, event):
         """Handle window resize events to maintain proper layout."""
         super().resizeEvent(event)
-        
+
         # Maintain aspect ratio for video frame if needed
-        if hasattr(self, 'video_frame') and self.video_frame:
+        if hasattr(self, "video_frame") and self.video_frame:
             # Allow video frame to scale naturally with the window
             # The layout system will handle the sizing automatically
             pass
-    
+
     def closeEvent(self, event):
         """Handle application shutdown."""
         self.logger.info("Application closing")

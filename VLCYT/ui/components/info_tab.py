@@ -37,13 +37,13 @@ except ImportError:
 
         def addLayout(self, layout):
             pass
-        
+
         def setContentsMargins(self, *args):
             pass
-        
+
         def setSpacing(self, spacing):
             pass
-        
+
         def setAlignment(self, alignment):
             pass
 
@@ -71,10 +71,10 @@ except ImportError:
 
         def setTextInteractionFlags(self, flags):
             pass
-        
+
         def setObjectName(self, name):
             pass
-        
+
         def setVisible(self, visible):
             pass
 
@@ -88,7 +88,7 @@ except ImportError:
     class QFrame(QWidget):
         def setLayout(self, layout):
             pass
-        
+
         def setObjectName(self, name):
             pass
 

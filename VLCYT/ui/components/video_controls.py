@@ -269,7 +269,9 @@ class VideoControls(QWidget):
 
         # Create main layout - single row for better organization
         main_layout = QHBoxLayout(self)
-        main_layout.setContentsMargins(STANDARD_MARGIN * 2, STANDARD_MARGIN, STANDARD_MARGIN * 2, STANDARD_MARGIN)
+        main_layout.setContentsMargins(
+            STANDARD_MARGIN * 2, STANDARD_MARGIN, STANDARD_MARGIN * 2, STANDARD_MARGIN
+        )
         main_layout.setSpacing(GROUP_SPACING)
 
         # Create playback buttons group
@@ -304,7 +306,7 @@ class VideoControls(QWidget):
         playback_layout.addWidget(self.next_button)
 
         main_layout.addWidget(playback_group)
-        
+
         # Add stretch between playback and progress groups
         main_layout.addStretch()
 
@@ -338,7 +340,7 @@ class VideoControls(QWidget):
         progress_layout.addWidget(self.total_time_label)
 
         main_layout.addWidget(progress_group, 2)  # Give progress section more space
-        
+
         # Add stretch between progress and volume groups
         main_layout.addStretch()
 
@@ -373,7 +375,7 @@ class VideoControls(QWidget):
         volume_layout.addWidget(self.volume_label)
 
         main_layout.addWidget(volume_group)
-        
+
         # Add stretch between volume and settings groups
         main_layout.addStretch()
 
@@ -609,9 +611,9 @@ class VideoControls(QWidget):
                 (self.play_pause_button, play_pause_callback),
                 (self.stop_button, stop_callback),
                 (self.prev_button, prev_callback),
-                (self.next_button, next_callback)
+                (self.next_button, next_callback),
             ]
-            
+
             for button, callback in buttons_with_callbacks:
                 if callback:  # Only disconnect if we're going to reconnect
                     try:
@@ -619,7 +621,7 @@ class VideoControls(QWidget):
                     except (RuntimeError, TypeError):
                         # No existing connections or signal doesn't exist, which is fine
                         pass
-        
+
         # Connect new callbacks
         if play_pause_callback:
             self.play_pause_button.clicked.connect(play_pause_callback)
