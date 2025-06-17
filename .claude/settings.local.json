@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep:*)",
+      "Bash(python:*)",
+      "Bash(black:*)",
+      "Bash(isort:*)",
+      "Bash(pip install:*)",
+      "Bash(apt list:*)",
+      "Bash(rg:*)",
+      "Bash(ruff:*)",
+      "WebFetch(domain:wiki.videolan.org)",
+      "WebFetch(domain:stackoverflow.com)",
+      "Bash(pip3 install:*)",
+      "Bash(source:*)",
+      "Bash(timeout:*)",
+      "Bash(./run.sh:*)",
+      "Bash(echo)"
+    ],
+    "deny": []
+  }
+}
